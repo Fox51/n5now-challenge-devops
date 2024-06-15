@@ -48,7 +48,7 @@ jobs:
       run: |
         docker build -t $ECR_REPOSITORY:latest -f frontend/Dockerfile frontend/
         docker tag $ECR_REPOSITORY:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
-        docker push $ECR_REPOSITORY:latest
+        docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
         echo "::set-output name=image::${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest"
 
     - name: Download task definition
@@ -68,7 +68,7 @@ jobs:
       id: task-def-frontend
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: task-definition.json
+        task-definition: ${{ steps.task-def-backend.outputs.task-definition }}
         container-name: frontend
         image: ${{ steps.build-frontend.outputs.image }}
 
