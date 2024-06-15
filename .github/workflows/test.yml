@@ -19,7 +19,7 @@ jobs:
       ECS_CONTAINER_NAME_BACKEND: "backend"
       ECS_CONTAINER_NAME_FRONTEND: "frontend"
       AWS_ACCOUNT_ID: "${{ secrets.AWS_ACCOUNT_ID }}"
-      DEPLOYMENT_ENV_ACTIONS: "Testing"
+      ENVIRONMENT_NAME: "Testing"
 
     steps:
     - name: Checkout code
@@ -62,10 +62,10 @@ jobs:
         TASK_DEFINITION=$(aws ecs describe-services --cluster $ECS_CLUSTER_NAME --services $ECS_SERVICE_NAME --query 'services[0].taskDefinition' --output text)
 
         # Create a new task definition revision with updated container image and environment variable
-        NEW_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query 'taskDefinition.{containerDefinitions:containerDefinitions, family:family, taskRoleArn:taskRoleArn, executionRoleArn:executionRoleArn, networkMode:networkMode, volumes:volumes, placementConstraints:placementConstraints, requiresCompatibilities:requiresCompatibilities, cpu:cpu, memory:memory}' --output json | jq --arg BACKEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_BACKEND }}:latest" --arg FRONTEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_FRONTEND }}:latest" --arg DEPLOYMENT_ENV_ACTIONS "${{ env.DEPLOYMENT_ENV_ACTIONS }}" '
+        NEW_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query 'taskDefinition.{containerDefinitions:containerDefinitions, family:family, taskRoleArn:taskRoleArn, executionRoleArn:executionRoleArn, networkMode:networkMode, volumes:volumes, placementConstraints:placementConstraints, requiresCompatibilities:requiresCompatibilities, cpu:cpu, memory:memory}' --output json | jq --arg BACKEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_BACKEND }}:latest" --arg FRONTEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_FRONTEND }}:latest" --arg ENVIRONMENT_NAME "${{ env.ENVIRONMENT_NAME }}" '
         .containerDefinitions[0].image=$BACKEND_IMAGE |
         .containerDefinitions[1].image=$FRONTEND_IMAGE |
-        .containerDefinitions[0].environment += [{"name": "DEPLOYMENT_ENV", "value": $DEPLOYMENT_ENV_ACTIONS}]')
+        .containerDefinitions[0].environment += [{"name": "DEPLOYMENT_ENV", "value": $ENVIRONMENT_NAME}]')
 
         # Register the new task definition revision
         REGISTERED_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file:///dev/stdin | jq -r .taskDefinition.taskDefinitionArn)
