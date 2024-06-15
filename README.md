@@ -1,4 +1,4 @@
-# Deployment Environment Display
+# WEB Environtment Display Variable Project
 
 This project is a simple web application that displays the deployment environment. It uses Flask for the backend and nginx to serve the frontend. The application is deployed on AWS ECS and uses GitHub Actions for CI/CD, along with Terraform for infrastructure on AWS.
 
