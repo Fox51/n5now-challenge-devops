@@ -87,7 +87,7 @@ The CI/CD pipeline is configured in GitHub Actions to install dependencies, buil
 
 ## CI/CD Configuration with GitHub Actions
 
-The GitHub Actions workflow file is located at `.github/workflows/ci-cd.yml`. This pipeline runs automatically on commits to either the `develop` or `testing` branches, setting the `ENVIRONMENT_NAME` environment variable based on the branch.
+The GitHub Actions workflow file is located at `.github/workflows/test|develop.yml`. This pipeline runs automatically on commits to either the `develop` or `testing` branches, setting the `ENVIRONMENT_NAME` environment variable based on the branch.
 
 ### Environment Variables
 
