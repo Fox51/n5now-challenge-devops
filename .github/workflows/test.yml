@@ -1,0 +1,139 @@
+name: Deploy to ECS for DEV
+
+on:
+  push:
+    branches:
+      - testing
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: "${{ secrets.AWS_REGION }}"
+      ECR_REPOSITORY_BACKEND: "${{ env.ECR_REPOSITORY_BACKEND }}"
+      ECR_REPOSITORY_FRONTEND: "${{ env.ECR_REPOSITORY_FRONTEND }}"
+      ECS_CLUSTER_NAME: "${{ env.ECS_CLUSTER_NAME }}"
+      ECS_SERVICE_NAME: "${{ env.ECS_SERVICE_NAME }}"
+      ECS_TASK_DEFINITION_NAME: "${{ env.ECS_TASK_DEFINITION_NAME }}"
+      ECS_CONTAINER_NAME_BACKEND: "backend"
+      ECS_CONTAINER_NAME_FRONTEND: "frontend"
+      AWS_ACCOUNT_ID: "${{ secrets.AWS_ACCOUNT_ID }}"
+      DEPLOYMENT_ENV_ACTIONS: "Testing"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push backend image to ECR
+      env:
+        ECR_REPOSITORY: ${{ env.ECR_REPOSITORY_BACKEND }}
+      run: |
+        docker build -t $ECR_REPOSITORY:latest -f backend/Dockerfile .
+        docker tag $ECR_REPOSITORY:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
+        docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
+
+    - name: Build, tag, and push frontend image to ECR
+      env:
+        ECR_REPOSITORY: ${{ env.ECR_REPOSITORY_FRONTEND }}
+      run: |
+        docker build -t $ECR_REPOSITORY:latest -f frontend/Dockerfile .
+        docker tag $ECR_REPOSITORY:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
+        docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
+
+    - name: Deploy to ECS
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+      run: |
+        echo "Updating ECS service with new task definition..."
+
+        # Fetch the current task definition for the ECS service
+        TASK_DEFINITION=$(aws ecs describe-services --cluster $ECS_CLUSTER_NAME --services $ECS_SERVICE_NAME --query 'services[0].taskDefinition' --output text)
+
+        # Create a new task definition revision with updated container image and environment variable
+        NEW_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query 'taskDefinition.{containerDefinitions:containerDefinitions, family:family, taskRoleArn:taskRoleArn, executionRoleArn:executionRoleArn, networkMode:networkMode, volumes:volumes, placementConstraints:placementConstraints, requiresCompatibilities:requiresCompatibilities, cpu:cpu, memory:memory}' --output json | jq --arg BACKEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_BACKEND }}:latest" --arg FRONTEND_IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_FRONTEND }}:latest" --arg DEPLOYMENT_ENV_ACTIONS "${{ env.DEPLOYMENT_ENV_ACTIONS }}" '
+        .containerDefinitions[0].image=$BACKEND_IMAGE |
+        .containerDefinitions[1].image=$FRONTEND_IMAGE |
+        .containerDefinitions[0].environment += [{"name": "DEPLOYMENT_ENV", "value": $DEPLOYMENT_ENV_ACTIONS}]')
+
+        # Register the new task definition revision
+        REGISTERED_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file:///dev/stdin | jq -r .taskDefinition.taskDefinitionArn)
+
+        # Update the ECS service to use the new task definition revision
+        aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --task-definition $REGISTERED_TASK_DEFINITION
+
+        echo "ECS service updated successfully."
+
+    - name: Wait for ECS service to be stable
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+        ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+        ECS_SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
+      run: |
+        echo "Waiting for ECS service to be stable..."
+        aws ecs wait services-stable --cluster $ECS_CLUSTER_NAME --services $ECS_SERVICE_NAME
+
+    - name: Get public IP or DNS of the task
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+        ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+        ECS_SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
+      run: |
+        echo "Getting public IP or DNS of the task..."
+        TASK_ARN=$(aws ecs list-tasks --cluster $ECS_CLUSTER_NAME --service-name $ECS_SERVICE_NAME --query "taskArns[0]" --output text)
+        ENI_ID=$(aws ecs describe-tasks --cluster $ECS_CLUSTER_NAME --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+        PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicIp" --output text)
+        PUBLIC_DNS=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicDnsName" --output text)
+
+        echo "The public IP of the ECS task is: $PUBLIC_IP"
+        echo "The public DNS of the ECS task is: $PUBLIC_DNS"
+
+        echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "PUBLIC_DNS=$PUBLIC_DNS" >> $GITHUB_ENV
+
+    - name: Output public IP and DNS
+      run: |
+        echo "Public IP: $PUBLIC_IP"
+        echo "Public DNS: $PUBLIC_DNS"
+    - name: Wait for ECS service to be stable
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+        ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+        ECS_SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
+      run: |
+        echo "Waiting for ECS service to be stable..."
+        aws ecs wait services-stable --cluster $ECS_CLUSTER_NAME --services $ECS_SERVICE_NAME
+
+    - name: Get public IP or DNS of the task
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+        ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+        ECS_SERVICE_NAME: ${{ env.ECS_SERVICE_NAME }}
+      run: |
+        echo "Getting public IP or DNS of the task..."
+        TASK_ARN=$(aws ecs list-tasks --cluster $ECS_CLUSTER_NAME --service-name $ECS_SERVICE_NAME --query "taskArns[0]" --output text)
+        ENI_ID=$(aws ecs describe-tasks --cluster $ECS_CLUSTER_NAME --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+        PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicIp" --output text)
+        PUBLIC_DNS=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicDnsName" --output text)
+
+        echo "The public IP of the ECS task is: $PUBLIC_IP"
+        echo "The public DNS of the ECS task is: $PUBLIC_DNS"
+
+        echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "PUBLIC_DNS=$PUBLIC_DNS" >> $GITHUB_ENV
+
+    - name: Output public IP and DNS
+      run: |
+        echo "Public IP: $PUBLIC_IP"
+        echo "Public DNS: $PUBLIC_DNS"

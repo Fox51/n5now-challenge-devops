@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deployment Environment</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #environment {
+            font-size: 3em; /* This makes the text larger */
+        }
+    </style>
+</head>
+<body>
+    <div id="environment">Loading...</div>
+    <script>
+        fetch('/environment')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('environment').innerText = data.environment || 'Unknown';
+            })
+            .catch(error => {
+                document.getElementById('environment').innerText = 'Error loading environment';
+                console.error('There has been a problem with your fetch operation:', error);
+            });
+    </script>
+</body>
+</html>
