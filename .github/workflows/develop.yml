@@ -67,11 +67,17 @@ jobs:
         .containerDefinitions[0].image=$BACKEND_IMAGE |
         .containerDefinitions[1].image=$FRONTEND_IMAGE |
         .containerDefinitions[0].environment |= map(select(.name != "DEPLOYMENT_ENV")) |
-        .containerDefinitions[0].environment |= map(select(.name != "DEPLOYMENT_ENV" or .value != "Unknown")) |
         .containerDefinitions[0].environment += [{"name": "DEPLOYMENT_ENV", "value": $DEPLOYMENT_ENV}]')
 
         # Debug: Print the new task definition JSON
         echo $NEW_TASK_DEFINITION | jq .
+
+        # Validate JSON
+        VALID_JSON=$(echo $NEW_TASK_DEFINITION | jq empty)
+        if [ $? -ne 0 ]; then
+          echo "Invalid JSON generated"
+          exit 1
+        fi
 
         # Register the new task definition revision
         REGISTERED_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file:///dev/stdin | jq -r .taskDefinition.taskDefinitionArn)
@@ -92,7 +98,7 @@ jobs:
         TASK_ARN=$(aws ecs list-tasks --cluster $ECS_CLUSTER_NAME --service-name $ECS_SERVICE_NAME --query "taskArns[0]" --output text)
         ENI_ID=$(aws ecs describe-tasks --cluster $ECS_CLUSTER_NAME --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
         PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicIp" --output text)
-        PUBLIC_DNS=$(aws ec2.describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicDnsName" --output text)
+        PUBLIC_DNS=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicDnsName" --output text)
 
         echo "The public IP of the ECS task is: $PUBLIC_IP"
         echo "The public DNS of the ECS task is: $PUBLIC_DNS"
