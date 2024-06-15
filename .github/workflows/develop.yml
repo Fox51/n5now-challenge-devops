@@ -33,7 +33,7 @@ jobs:
       env:
         ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_BACKEND }}
       run: |
-        docker build -t $ECR_REPOSITORY:latest -f backend/Dockerfile .
+        docker build -t $ECR_REPOSITORY:latest -f backend/Dockerfile backend/
         docker tag $ECR_REPOSITORY:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
         docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
 
@@ -41,7 +41,7 @@ jobs:
       env:
         ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_FRONTEND }}
       run: |
-        docker build -t $ECR_REPOSITORY:latest -f frontend/Dockerfile .
+        docker build -t $ECR_REPOSITORY:latest -f frontend/Dockerfile frontend/
         docker tag $ECR_REPOSITORY:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
         docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:latest
 
