@@ -12,7 +12,7 @@ jobs:
     env:
       AWS_REGION: "${{ secrets.AWS_REGION }}"
       AWS_ACCOUNT_ID: "${{ secrets.AWS_ACCOUNT_ID }}"
-      DEPLOYMENT_ENV_ACTIONS: "Develop"
+      ENVIRONMENT_NAME: "Develop"
 
     steps:
     - name: Checkout code
@@ -74,7 +74,7 @@ jobs:
 
     - name: Update DEPLOYMENT_ENV variable in task definition
       run: |
-        jq --arg DEPLOYMENT_ENV "${{ env.DEPLOYMENT_ENV_ACTIONS }}" '
+        jq --arg DEPLOYMENT_ENV "${{ env.ENVIRONMENT_NAME }}" '
         .containerDefinitions[0].environment |= map(if .name == "DEPLOYMENT_ENV" then .value = $DEPLOYMENT_ENV else . end)' task-definition.json > new-task-def.json
 
     - name: Deploy Amazon ECS task definition
