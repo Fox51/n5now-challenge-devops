@@ -97,9 +97,11 @@ Make sure to set the following environment variables in your GitHub repository s
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_ACCOUNT_ID`
 - `AWS_REGION`
-- `AWS_ECR_REPOSITORY`
+- `ECR_REPOSITORY_BACKEND`
+- `ECR_REPOSITORY_FRONTEND`
 - `ECS_CLUSTER_NAME`
 - `ECS_SERVICE_NAME`
+- `ECS_TASK_DEFINITION_NAME`
 
 ## Additional Notes
 
