@@ -88,7 +88,7 @@ resource "aws_ecs_task_definition" "app_task" {
     "environment": [
       {
         "name": "BACKEND_URL",
-        "value": "http://backend:5000"
+        "value": "http://localhost:5000"
       }
     ],
     "dependsOn": [
