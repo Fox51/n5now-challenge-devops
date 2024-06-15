@@ -81,20 +81,20 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: new-task-def.json
-        service: ${{ secrets.ECS_SERVICE }}
-        cluster: ${{ secrets.ECS_CLUSTER }}
+        service: ${{ vars.ECS_SERVICE_NAME }}
+        cluster: ${{ vars.ECS_CLUSTER_NAME }}
         wait-for-service-stability: true
 
     - name: Wait for ECS service to be stable
       run: |
         echo "Waiting for ECS service to be stable..."
-        aws ecs wait services-stable --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }}
+        aws ecs wait services-stable --cluster ${{ vars.ECS_CLUSTER_NAME }} --services ${{ vars.ECS_SERVICE_NAME }}
 
     - name: Get public IP or DNS of the task
       run: |
         echo "Getting public IP or DNS of the task..."
-        TASK_ARN=$(aws ecs list-tasks --cluster ${{ secrets.ECS_CLUSTER }} --service-name ${{ secrets.ECS_SERVICE }} --query "taskArns[0]" --output text)
-        ENI_ID=$(aws ecs describe-tasks --cluster ${{ secrets.ECS_CLUSTER }} --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+        TASK_ARN=$(aws ecs list-tasks --cluster ${{ vars.ECS_CLUSTER_NAME }} --service-name ${{ vars.ECS_SERVICE_NAME }} --query "taskArns[0]" --output text)
+        ENI_ID=$(aws ecs describe-tasks --cluster ${{ vars.ECS_CLUSTER_NAME }} --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
         PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicIp" --output text)
         PUBLIC_DNS=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicDnsName" --output text)
 
