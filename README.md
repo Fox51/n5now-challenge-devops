@@ -8,7 +8,6 @@ project-root/
 │
 ├── backend/
 │ ├── app.py
-│ ├── requirements.txt
 │ ├── Dockerfile
 │
 ├── frontend/
