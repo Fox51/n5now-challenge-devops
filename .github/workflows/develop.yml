@@ -68,6 +68,9 @@ jobs:
         .containerDefinitions[1].image=$FRONTEND_IMAGE |
         .containerDefinitions[0].environment += [{"name": "DEPLOYMENT_ENV", "value": $DEPLOYMENT_ENV}]')
 
+        # Debug: Print the new task definition JSON
+        echo $NEW_TASK_DEFINITION | jq .
+
         # Register the new task definition revision
         REGISTERED_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file:///dev/stdin | jq -r .taskDefinition.taskDefinitionArn)
 
