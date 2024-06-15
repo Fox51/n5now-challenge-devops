@@ -21,11 +21,11 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 resource "aws_ecr_repository" "app_backend_repo" {
-  name = "${var.ecr_repository_name}_backend"
+  name = "${var.ecr_repository_name}-backend"
 }
 
 resource "aws_ecr_repository" "app_frontend_repo" {
-  name = "${var.ecr_repository_name}_frontend"
+  name = "${var.ecr_repository_name}-frontend"
 }
 
 resource "aws_ecs_cluster" "app_cluster" {
@@ -60,7 +60,15 @@ resource "aws_ecs_task_definition" "app_task" {
         "name": "DEPLOYMENT_ENV",
         "value": "${var.deployment_env}"
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/${var.ecs_service_name}",
+        "awslogs-region": "${var.aws_region}",
+        "awslogs-stream-prefix": "backend"
+      }
+    }
   },
   {
     "name": "frontend",
@@ -83,55 +91,19 @@ resource "aws_ecs_task_definition" "app_task" {
         "containerName": "backend",
         "condition": "START"
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/${var.ecs_service_name}",
+        "awslogs-region": "${var.aws_region}",
+        "awslogs-stream-prefix": "frontend"
+      }
+    }
   }
 ]
 DEFINITION
 }
-
-
-# resource "aws_lb" "app_lb" {
-#   name               = "app-lb"
-#   internal           = false
-#   load_balancer_type = "application"
-#   security_groups    = [aws_security_group.lb_sg.id]
-#   subnets            = var.subnets
-
-#   enable_deletion_protection = false
-# }
-
-# resource "aws_lb_target_group" "app_tg" {
-#   name         = "app-tg"
-#   port         = 80
-#   protocol     = "HTTP"
-#   vpc_id       = var.vpc_id
-#   target_type  = "ip"
-
-#   health_check {
-#     interval            = 30
-#     path                = "/"
-#     timeout             = 5
-#     unhealthy_threshold = 2
-#     healthy_threshold   = 2
-#     matcher             = "200"
-#   }
-# }
-
-# resource "aws_lb_listener" "app_listener" {
-#   load_balancer_arn = aws_lb.app_lb.arn
-#   port              = "80"
-#   protocol          = "HTTP"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.app_tg.arn
-#   }
-
-#   depends_on = [
-#     aws_lb.app_lb,
-#     aws_lb_target_group.app_tg
-#   ]
-# }
 
 resource "aws_ecs_service" "app_service" {
   name            = var.ecs_service_name
@@ -144,12 +116,6 @@ resource "aws_ecs_service" "app_service" {
     security_groups = [aws_security_group.ecs_sg.id]
     assign_public_ip = true
   }
-
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.app_tg.arn
-  #   container_name   = "frontend"
-  #   container_port   = 80
-  # }
 
   depends_on = [
     aws_ecs_task_definition.app_task
@@ -182,30 +148,3 @@ resource "aws_security_group" "ecs_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-# resource "aws_security_group" "lb_sg" {
-#   name        = "lb-security-group"
-#   description = "Security group for ALB"
-#   vpc_id      = var.vpc_id
-
-#   ingress {
-#     from_port   = 80
-#     to_port     = 80
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-
-#   ingress {
-#     from_port   = 5000
-#     to_port     = 5000
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
