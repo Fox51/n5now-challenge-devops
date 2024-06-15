@@ -3,7 +3,7 @@ import os
 
 app = Flask(__name__)
 
-@app.route('/environment')
+@app.route('/environment', methods=['GET'])
 def get_environment():
     environment = os.getenv('DEPLOYMENT_ENV', 'Unknown')
     return jsonify(environment=environment)
