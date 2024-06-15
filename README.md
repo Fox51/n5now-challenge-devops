@@ -13,7 +13,8 @@ project-root/
 │
 ├── frontend/
 │ ├── index.html
-│ ├── nginx.conf
+│ ├── nginx_ecs.conf
+│ ├── nginx.conf 
 │ ├── Dockerfile
 │
 ├── terraform/
